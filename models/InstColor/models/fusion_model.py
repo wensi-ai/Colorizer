@@ -1,18 +1,14 @@
-import os
+import sys
+sys.path.append("..")
 
 import torch
-from collections import OrderedDict
-from util.image_pool import ImagePool
-from util import util
+from utils.util import util
 from .base_model import BaseModel
 from . import networks
 import numpy as np
 from skimage import io
 from skimage import img_as_ubyte
 
-import matplotlib.pyplot as plt
-import math
-from matplotlib import colors
 
 
 class FusionModel(BaseModel):
