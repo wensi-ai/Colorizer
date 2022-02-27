@@ -1,2 +1,9 @@
 test
+
+notebooks/.ipynb_checkpoints
+notebooks/results
+notebooks/checkpoints*
+
 utils/__pycache__
+models/InstaColor/__pycache__
+models/InstaColor/*/__pycache__

@@ -2,7 +2,8 @@ import sys
 sys.path.append("..")
 
 import torch
-from utils.util import util
+from utils import color_format
+from models.InstaColor.utils import util
 from .base_model import BaseModel
 from . import networks
 import numpy as np
@@ -83,7 +84,7 @@ class FusionModel(BaseModel):
         self.fake_B_reg = self.netGF(self.full_real_A, self.full_hint_B, self.full_mask_B, feature_map, self.box_info_list)
         
     def save_current_imgs(self, path):
-        out_img = torch.clamp(util.lab2rgb(torch.cat((self.full_real_A.type(torch.cuda.FloatTensor), self.fake_B_reg.type(torch.cuda.FloatTensor)), dim=1), self.opt), 0.0, 1.0)
+        out_img = torch.clamp(color_format.lab2rgb(torch.cat((self.full_real_A.type(torch.cuda.FloatTensor), self.fake_B_reg.type(torch.cuda.FloatTensor)), dim=1), self.opt), 0.0, 1.0)
         out_img = np.transpose(out_img.cpu().data.numpy()[0], (1, 2, 0))
         io.imsave(path, img_as_ubyte(out_img))
 

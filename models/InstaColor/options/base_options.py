@@ -1,13 +1,10 @@
-import sys
-sys.path.append("..")
-
 import argparse
 import os
-from utils.util import util
+from models.InstaColor.utils import util
 import torch
-import models
-import data
-
+import models.InstaColor.models as models
+import models.InstaColor.data as data
+    
 
 class BaseOptions():
     def __init__(self):

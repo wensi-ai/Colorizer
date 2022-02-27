@@ -1,8 +1,11 @@
 import os
 import cv2
+from typing import List
 
 def convert_video_to_frames(video_path: str, frames_path: str):
     """Convert video input to a set of frames in jpg format"""
+    if os.path.isdir(frames_path) is False:
+            os.makedirs(frames_path)
     vidcap = cv2.VideoCapture(video_path)
     success,image = vidcap.read()
     count = 0
@@ -16,9 +19,8 @@ def convert_video_to_frames(video_path: str, frames_path: str):
         count += 1
 
 
-def convert_frames_to_video(frames_path: str, video_name: str):
+def convert_frames_to_video(frames_path: str, images: List[str], video_name: str):
     """Convert video input to a set of frames in jpg format"""
-    images = [f"frame{i}.jpg" for i in range(1444)]
     frame = cv2.imread(os.path.join(frames_path, images[0]))
     height, width, _ = frame.shape
     video = cv2.VideoWriter(video_name, cv2.VideoWriter_fourcc(*'XVID'), 30, (width, height))
