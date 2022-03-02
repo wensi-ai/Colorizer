@@ -1,3 +1,4 @@
+import os
 import zipfile
 import requests
 
@@ -11,3 +12,7 @@ def download_zipfile(url: str, destination: str='.', unzip: bool=True):
     if unzip:
         with zipfile.ZipFile(destination, 'r') as zip_ref:
             zip_ref.extractall(".")
+
+def mkdir(dir_path):
+    if not os.path.exists(dir_path):
+        os.makedirs(dir_path)

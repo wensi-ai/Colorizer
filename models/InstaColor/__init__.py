@@ -6,7 +6,7 @@ import torch
 import cv2
 from typing import List
 from tqdm import tqdm
-from utils.util import download_pretrained_checkpoint
+from utils.util import download_zipfile, mkdir
 
 from models.InstaColor.models.base_model import BaseModel
 from models.InstaColor.utils import util
@@ -67,8 +67,7 @@ class InstaColor:
         """
         #create bounding box save folder
         output_npz_dir = "{0}_bbox".format(input_dir)
-        if os.path.isdir(output_npz_dir) is False:
-            os.makedirs(output_npz_dir)
+        mkdir(output_npz_dir)
         
         # get bounding box for each image
         print("Getting bounding boxes...")
@@ -84,8 +83,7 @@ class InstaColor:
 
         #create colorized output save folder
         save_img_path = opt.results_img_dir
-        if os.path.isdir(save_img_path) is False:
-            os.makedirs(save_img_path)
+        mkdir(save_img_path)
 
         # setup dataset loader
         opt.batch_size = 1

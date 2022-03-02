@@ -1,4 +1,4 @@
-import numpy as np
+import sys
 import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
@@ -53,3 +53,33 @@ def LPIPS(img1, img2):
 
 def PCVC(img1, img2):
     pass
+
+
+def colorfulness(imgs):
+    """
+    according to the paper: Measuring colourfulness in natural images
+    input is batches of ab tensors in lab space
+    """
+    N, C, H, W = imgs.shape
+    a = imgs[:, 0:1, :, :]
+    b = imgs[:, 1:2, :, :]
+
+    a = a.view(N, -1)
+    b = b.view(N, -1)
+
+    sigma_a = torch.std(a, dim=-1)
+    sigma_b = torch.std(b, dim=-1)
+
+    mean_a = torch.mean(a, dim=-1)
+    mean_b = torch.mean(b, dim=-1)
+
+    return torch.sqrt(sigma_a ** 2 + sigma_b ** 2) + 0.37 * torch.sqrt(mean_a ** 2 + mean_b ** 2)
+
+
+def cosine_similarity(img1, img2):
+    input_norm = torch.norm(img1, 2, 1, keepdim=True) + sys.float_info.epsilon
+    target_norm = torch.norm(img2, 2, 1, keepdim=True) + sys.float_info.epsilon
+    normalized_input = torch.div(img1, input_norm)
+    normalized_target = torch.div(img2, target_norm)
+    cos_similarity = torch.mul(normalized_input, normalized_target)
+    return torch.sum(cos_similarity, dim=1, keepdim=True)
