@@ -196,35 +196,11 @@ def calc_cosine_dist_loss(input, target):
 
 
 ###### video related #######
-def save_frames(image, image_folder, index=None, image_name=None):
+def save_frames(image, image_folder, index=None):
     if image is not None:
         image = np.clip(image, 0, 255).astype(np.uint8)
-        if image_name:
-            io.imsave(os.path.join(image_folder, image_name), image)
-        else:
-            io.imsave(os.path.join(image_folder, str(index).zfill(5) + ".jpg"), image)
+        io.imsave(os.path.join(image_folder, "frame" + str(index).zfill(5) + ".jpg"), image)
 
-
-def folder2vid(image_folder, output_dir, filename):
-    images = [img for img in os.listdir(image_folder) if img.endswith(".jpg") or img.endswith(".png")]
-    images.sort()
-    frame = cv2.imread(os.path.join(image_folder, images[0]))
-    height, width, layers = frame.shape
-    print("writing to video " + os.path.join(output_dir, filename))
-    video = cv2.VideoWriter(
-        os.path.join(output_dir, filename), cv2.VideoWriter_fourcc("D", "I", "V", "X"), 24, (width, height)
-    )
-
-    for image in images:
-        video.write(cv2.imread(os.path.join(image_folder, image)))
-
-    video.release()
-
-    # import imageio
-    # frames = []
-    # for image in images:
-    #     frames.append(imageio.imread(os.path.join(image_folder, image)))
-    # imageio.mimsave('movie.gif', frames)
 
 
 ###### file system ######

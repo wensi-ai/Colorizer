@@ -1,4 +1,5 @@
 import os
+import shutil
 import cv2
 import torch
 from PIL import Image
@@ -7,9 +8,10 @@ import numpy as np
 import torchvision.transforms as transform_lib
 
 from utils.util import download_zipfile, mkdir
+from utils.v2i import convert_frames_to_video
+import models.DEVC.utils.lib.test_transforms as transforms
 from models.DEVC.utils.util_distortion import CenterPad, Normalize, RGB2Lab, ToTensor
-from models.DEVC.utils.util import (batch_lab2rgb_transpose_mc, folder2vid,
-                        save_frames, tensor_lab2rgb, uncenter_l)
+from models.DEVC.utils.util import batch_lab2rgb_transpose_mc, save_frames, tensor_lab2rgb, uncenter_l
 from models.DEVC.models.ColorVidNet import ColorVidNet
 from models.DEVC.models.FrameColor import frame_colorization
 from models.DEVC.models.NonlocalNet import VGG19_pytorch, WarpNet
@@ -23,14 +25,11 @@ class DEVC():
         if pretrained is True:
             download_zipfile("https://facevc.blob.core.windows.net/zhanbo/old_photo/colorization_checkpoint.zip", "DEVC_checkpoints.zip")
             self.vggnet.load_state_dict(torch.load("data/vgg19_conv.pth"))
-            self.nonlocal_net.load_state_dict(torch.load("DEVC_checkpoints/video_moredata_l1/nonlocal_net_iter_76000.pth"))
-            self.colornet.load_state_dict(torch.load("DEVC_checkpoints/video_moredata_l1/colornet_iter_76000.pth"))
+            self.nonlocal_net.load_state_dict(torch.load("checkpoints/video_moredata_l1/nonlocal_net_iter_76000.pth"))
+            self.colornet.load_state_dict(torch.load("checkpoints/video_moredata_l1/colornet_iter_76000.pth"))
 
-    def test(self, input_path, reference_file, output_path, nonlocal_net, colornet, vggnet, opt):
-        clip_name = opt.clip_path.split("/")[-1]
-        refs = os.listdir(opt.ref_path)
-        refs.sort()
-
+    def test(self, input_path, output_path, opt):
+        mkdir(opt.output_frame_path)
         # parameters for wls filter
         wls_filter_on = True
         lambda_value = 500
@@ -59,7 +58,7 @@ class DEVC():
 
         # if frame propagation: use the first frame as reference
         # otherwise, use the specified reference image
-        ref_name = input_path + filenames[0] if opt.frame_propagate else reference_file
+        ref_name = input_path + filenames[0] if opt.frame_propagate else opt.ref_path
         print("reference name:", ref_name)
         frame_ref = Image.open(ref_name)
 
@@ -74,7 +73,7 @@ class DEVC():
             I_reference_l = I_reference_lab[:, 0:1, :, :]
             I_reference_ab = I_reference_lab[:, 1:3, :, :]
             I_reference_rgb = tensor_lab2rgb(torch.cat((uncenter_l(I_reference_l), I_reference_ab), dim=1))
-            features_B = vggnet(I_reference_rgb, ["r12", "r22", "r32", "r42", "r52"], preprocess=True)
+            features_B = self.vggnet(I_reference_rgb, ["r12", "r22", "r32", "r42", "r52"], preprocess=True)
 
         for index, frame_name in enumerate(tqdm(filenames)):
             frame1 = Image.open(os.path.join(input_path, frame_name))
@@ -98,9 +97,9 @@ class DEVC():
                     I_reference_lab,
                     I_last_lab_predict,
                     features_B,
-                    vggnet,
-                    nonlocal_net,
-                    colornet,
+                    self.vggnet,
+                    self.nonlocal_net,
+                    self.colornet,
                     feature_noise=0,
                     temperature=1e-10,
                 )
@@ -128,37 +127,16 @@ class DEVC():
                 IA_predict_rgb = batch_lab2rgb_transpose_mc(curr_bs_l[:32], curr_predict[:32, ...])
 
             # save the frames
-            save_frames(IA_predict_rgb, output_path, index)
+            save_frames(IA_predict_rgb, opt.output_frame_path, index)
 
         # output video
-        video_name = "video.avi"
-        folder2vid(image_folder=output_path, output_dir=output_path, filename=video_name)
-        print()
+        convert_frames_to_video(opt.output_frame_path, output_path)
 
+        shutil.rmtree("data")
+        shutil.rmtree("checkpoints")
 
+        print("Task Complete!")
+        
 
-
-
-
-        for ref_name in refs:
-            try:
-                colorize_video(
-                    opt,
-                    opt.clip_path,
-                    os.path.join(opt.ref_path, ref_name),
-                    os.path.join(opt.output_path, clip_name + "_" + ref_name.split(".")[0]),
-                    nonlocal_net,
-                    colornet,
-                    vggnet,
-                )
-            except Exception as error:
-                print("error when colorizing the video " + ref_name)
-                print(error)
-
-        video_name = "video.avi"
-        clip_output_path = os.path.join(opt.output_path, clip_name)
-        mkdir(clip_output_path)
-        folder2vid(image_folder=opt.clip_path, output_dir=clip_output_path, filename=video_name)
-    
     def train(self):
         pass
