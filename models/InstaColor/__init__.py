@@ -11,7 +11,7 @@ from utils.util import download_zipfile, mkdir
 from models.InstaColor.models.base_model import BaseModel
 from models.InstaColor.utils import util
 from models.InstaColor.utils.datasets import *
-from models.InstaColor.utils.download import download_zipfile
+from utils.util import download_zipfile
 
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor

@@ -1,7 +1,9 @@
 import os
+import cv2
 import torch
 from PIL import Image
 from tqdm import tqdm
+import numpy as np
 import torchvision.transforms as transform_lib
 
 from utils.util import download_zipfile, mkdir
@@ -14,14 +16,35 @@ from models.DEVC.models.NonlocalNet import VGG19_pytorch, WarpNet
 
 class DEVC():
     def __init__(self, pretrained=False):
+        self.nonlocal_net = WarpNet(1)
+        self.colornet = ColorVidNet(7)
+        self.vggnet = VGG19_pytorch()
+
         if pretrained is True:
             download_zipfile("https://facevc.blob.core.windows.net/zhanbo/old_photo/colorization_checkpoint.zip", "DEVC_checkpoints.zip")
-    
+            self.vggnet.load_state_dict(torch.load("data/vgg19_conv.pth"))
+            self.nonlocal_net.load_state_dict(torch.load("DEVC_checkpoints/video_moredata_l1/nonlocal_net_iter_76000.pth"))
+            self.colornet.load_state_dict(torch.load("DEVC_checkpoints/video_moredata_l1/colornet_iter_76000.pth"))
+
     def test(self, input_path, reference_file, output_path, nonlocal_net, colornet, vggnet, opt):
+        clip_name = opt.clip_path.split("/")[-1]
+        refs = os.listdir(opt.ref_path)
+        refs.sort()
+
         # parameters for wls filter
         wls_filter_on = True
         lambda_value = 500
         sigma_color = 4
+
+        # net
+        self.nonlocal_net.eval()
+        self.colornet.eval()
+        self.vggnet.eval()
+        self.nonlocal_net.cuda()
+        self.colornet.cuda()
+        self.vggnet.cuda()
+        for param in self.vggnet.parameters():
+            param.requires_grad = False
 
         # processing folders
         mkdir(output_path)
@@ -111,6 +134,31 @@ class DEVC():
         video_name = "video.avi"
         folder2vid(image_folder=output_path, output_dir=output_path, filename=video_name)
         print()
+
+
+
+
+
+
+        for ref_name in refs:
+            try:
+                colorize_video(
+                    opt,
+                    opt.clip_path,
+                    os.path.join(opt.ref_path, ref_name),
+                    os.path.join(opt.output_path, clip_name + "_" + ref_name.split(".")[0]),
+                    nonlocal_net,
+                    colornet,
+                    vggnet,
+                )
+            except Exception as error:
+                print("error when colorizing the video " + ref_name)
+                print(error)
+
+        video_name = "video.avi"
+        clip_output_path = os.path.join(opt.output_path, clip_name)
+        mkdir(clip_output_path)
+        folder2vid(image_folder=opt.clip_path, output_dir=clip_output_path, filename=video_name)
     
     def train(self):
         pass
