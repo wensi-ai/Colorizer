@@ -7,3 +7,5 @@ notebooks/checkpoints*
 utils/__pycache__
 models/InstaColor/__pycache__
 models/InstaColor/*/__pycache__
+
+*.zip
