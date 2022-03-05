@@ -5,3 +5,4 @@ notebooks/results
 notebooks/checkpoints*
 
 **/__pycache__
+*.zip
