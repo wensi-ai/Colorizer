@@ -133,6 +133,7 @@ class DEVC():
 
         shutil.rmtree("data")
         shutil.rmtree("checkpoints")
+        shutil.rmtree(opt.output_frame_path)
 
         print("Task Complete!")
 

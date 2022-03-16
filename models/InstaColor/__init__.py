@@ -7,6 +7,7 @@ import cv2
 from typing import List
 from tqdm import tqdm
 from utils.util import download_zipfile, mkdir
+from utils.v2i import convert_frames_to_video
 
 from models.InstaColor.models.base_model import BaseModel
 from models.InstaColor.utils import util
@@ -61,29 +62,22 @@ class InstaColor:
         self.model.initialize(opt)
         print("model [%s] was created" % (self.model.name()))
 
-    def test(self, input_dir: str, file_names: List[str], opt):
+    def test_images(self, input_dir: str, file_names: List[str], opt):
         """
         Testing function 
         """
-        #create bounding box save folder
-        output_npz_dir = "{0}_bbox".format(input_dir)
-        mkdir(output_npz_dir)
-        
         # get bounding box for each image
         print("Getting bounding boxes...")
-        for image_name in tqdm(file_names):
-            img = cv2.imread(f"{input_dir}/{image_name}")
-            lab_image = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
-            l_channel, a_channel, b_channel = cv2.split(lab_image)
-            l_stack = np.stack([l_channel, l_channel, l_channel], axis=2)
-            outputs = self.predictor(l_stack)
-            pred_bbox = outputs["instances"].pred_boxes.to(torch.device('cpu')).tensor.numpy()
-            pred_scores = outputs["instances"].scores.cpu().data.numpy()
-            np.savez(f"{output_npz_dir}/{image_name.split('.')[0]}", bbox = pred_bbox, scores = pred_scores)
-
-        #create colorized output save folder
-        save_img_path = opt.results_img_dir
-        mkdir(save_img_path)
+        with torch.no_grad():
+            for image_name in tqdm(file_names):
+                img = cv2.imread(f"{input_dir}/{image_name}")
+                lab_image = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+                l_channel, a_channel, b_channel = cv2.split(lab_image)
+                l_stack = np.stack([l_channel, l_channel, l_channel], axis=2)
+                outputs = self.predictor(l_stack)
+                pred_bbox = outputs["instances"].pred_boxes.to(torch.device('cpu')).tensor.numpy()
+                pred_scores = outputs["instances"].scores.cpu().data.numpy()
+                np.savez(f"{opt.output_npz_dir}/{image_name.split('.')[0]}", bbox = pred_bbox, scores = pred_scores)
 
         # setup dataset loader
         opt.batch_size = 1
@@ -114,107 +108,30 @@ class InstaColor:
                 else:
                     full_img_data = util.get_colorization_data(data_raw['full_img'], opt, ab_thresh=0, p=opt.sample_p)
                     self.model.set_forward_without_box(full_img_data)
-                self.model.save_current_imgs(os.path.join(save_img_path, data_raw['file_id'][0] + '.png'))
+                self.model.save_current_imgs(os.path.join(opt.results_img_dir, data_raw['file_id'][0] + '.png'))
 
+    def test(self, input_dir: str, output_path: str, opt):
+        # get file names
+        input_files = os.listdir(input_dir)
+        #create colorized output save folder       
+        mkdir(opt.results_img_dir)
+        #create bounding box save folder
+        output_npz_dir = "{0}_bbox".format(input_dir)
+        mkdir(output_npz_dir)
+        opt.output_npz_dir = output_npz_dir
+
+        for i in range(0, len(input_files), 5):
+            self.test_images(input_dir, input_files[i : min(len(input_files), i + 5)], opt)
+        
+        output_frames = sorted(os.listdir(opt.results_img_dir))
+        # resize back
+        for output in output_frames:
+            img = Image.open(os.path.join(opt.results_img_dir, output))
+            img = img.resize((320, 180), Image.ANTIALIAS)
+            img.save(os.path.join(opt.results_img_dir, output))
+        
+        convert_frames_to_video(opt.results_img_dir, output_path)
         # remove bounding box dir
         shutil.rmtree(output_npz_dir)
+        shutil.rmtree(opt.results_img_dir)
         print("Task Complete")
-
-    def _train_single_stage(self, opt):
-        if opt.stage == 'full':
-            dataset = Training_Full_Dataset(opt)
-        elif opt.stage == 'instance':
-            dataset = Training_Instance_Dataset(opt)
-        elif opt.stage == 'fusion':
-            dataset = Training_Fusion_Dataset(opt)
-        else:
-            print('Error! Wrong stage selection!')
-            exit()
-        dataset_loader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True, num_workers=8)
-
-        dataset_size = len(dataset)
-        print('#training images = %d' % dataset_size)
-
-        model = self.create_model(opt)
-        model.setup(opt)
-
-        opt.display_port = 8098
-        visualizer = Visualizer(opt)
-        total_steps = 0
-
-        if opt.stage == 'full' or opt.stage == 'instance':
-            for epoch in trange(opt.epoch_count, opt.niter + opt.niter_decay, desc='epoch', dynamic_ncols=True):
-                epoch_iter = 0
-
-                for data_raw in tqdm(dataset_loader, desc='batch', dynamic_ncols=True, leave=False):
-                    total_steps += opt.batch_size
-                    epoch_iter += opt.batch_size
-
-                    data_raw['rgb_img'] = [data_raw['rgb_img']]
-                    data_raw['gray_img'] = [data_raw['gray_img']]
-
-                    input_data = util.get_colorization_data(data_raw['gray_img'], opt, p=1.0, ab_thresh=0)
-                    gt_data = util.get_colorization_data(data_raw['rgb_img'], opt, p=1.0, ab_thresh=10.0)
-                    if gt_data is None:
-                        continue
-                    if(gt_data['B'].shape[0] < opt.batch_size):
-                        continue
-                    input_data['B'] = gt_data['B']
-                    input_data['hint_B'] = gt_data['hint_B']
-                    input_data['mask_B'] = gt_data['mask_B']
-
-                    visualizer.reset()
-                    model.set_input(input_data)
-                    model.optimize_parameters()
-
-                    if total_steps % opt.display_freq == 0:
-                        save_result = total_steps % opt.update_html_freq == 0
-                        visualizer.display_current_results(model.get_current_visuals(), epoch, save_result)
-
-                    if total_steps % opt.print_freq == 0:
-                        losses = model.get_current_losses()
-                        if opt.display_id > 0:
-                            visualizer.plot_current_losses(epoch, float(epoch_iter) / dataset_size, opt, losses)
-
-                if epoch % opt.save_epoch_freq == 0:
-                    model.save_networks('latest')
-                    model.save_networks(epoch)
-                model.update_learning_rate()
-        elif opt.stage == 'fusion':
-            for epoch in trange(opt.epoch_count, opt.niter + opt.niter_decay, desc='epoch', dynamic_ncols=True):
-                epoch_iter = 0
-
-                for data_raw in tqdm(dataset_loader, desc='batch', dynamic_ncols=True, leave=False):
-                    total_steps += opt.batch_size
-                    epoch_iter += opt.batch_size
-                    box_info = data_raw['box_info'][0]
-                    box_info_2x = data_raw['box_info_2x'][0]
-                    box_info_4x = data_raw['box_info_4x'][0]
-                    box_info_8x = data_raw['box_info_8x'][0]
-                    cropped_input_data = util.get_colorization_data(data_raw['cropped_gray'], opt, p=1.0, ab_thresh=0)
-                    cropped_gt_data = util.get_colorization_data(data_raw['cropped_rgb'], opt, p=1.0, ab_thresh=10.0)
-                    full_input_data = util.get_colorization_data(data_raw['full_gray'], opt, p=1.0, ab_thresh=0)
-                    full_gt_data = util.get_colorization_data(data_raw['full_rgb'], opt, p=1.0, ab_thresh=10.0)
-                    if cropped_gt_data is None or full_gt_data is None:
-                        continue
-                    cropped_input_data['B'] = cropped_gt_data['B']
-                    full_input_data['B'] = full_gt_data['B']
-                    visualizer.reset()
-                    model.set_input(cropped_input_data)
-                    model.set_fusion_input(full_input_data, [box_info, box_info_2x, box_info_4x, box_info_8x])
-                    model.optimize_parameters()
-
-                    if total_steps % opt.display_freq == 0:
-                        save_result = total_steps % opt.update_html_freq == 0
-                        visualizer.display_current_results(model.get_current_visuals(), epoch, save_result)
-
-                    if total_steps % opt.print_freq == 0:
-                        losses = model.get_current_losses()
-                        if opt.display_id > 0:
-                            visualizer.plot_current_losses(epoch, float(epoch_iter) / dataset_size, opt, losses)
-                if epoch % opt.save_epoch_freq == 0:
-                    model.save_fusion_epoch(epoch)
-                model.update_learning_rate()
-        else:
-            print('Error! Wrong stage selection!')
-            exit()

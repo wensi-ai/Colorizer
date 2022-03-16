@@ -2,6 +2,8 @@ import sys
 sys.path.append(".")
 
 import os
+import numpy as np
+import matplotlib.pyplot as plt
 import streamlit as st
 from importlib import import_module
 from utils import v2i
@@ -9,11 +11,11 @@ from utils.util import apply_metric_to_video
 from utils.metrics import *
 
 @st.cache
-def colorize(model, i):
+def colorize(model, model_name):
     sys.argv = [sys.argv[0]]
     opt = TestOptions().parse()
-    model.test("test/frames", f"test/output_{i}.mp4", opt)
-    video = open(f"test/output_{i}.mp4", 'rb').read()
+    model.test("test/frames", f"test/output_{model_name}.mp4", opt)
+    video = open(f"test/output_{model_name}.mp4", 'rb').read()
     return video
 
 @st.cache
@@ -39,7 +41,7 @@ input_method = st.sidebar.selectbox(
     'Select video input:',
     ("sample video", "random from dataset", "upload local video")
 )
-
+# get input video
 if input_method == "upload local video":
     video_org = st.sidebar.file_uploader("Choose a file")
     video_org = video_org.content()
@@ -48,27 +50,50 @@ elif input_method == "sample video":
 else:
     video_org = None
 
+# display video
 st.subheader("Original video:")
 st.video(video_org, format="video/mp4", start_time=0)
 st.subheader("Colorized video:")
-st.subheader("Metrics:")
-chart = st.line_chart([])
+
+# setup metric
+psnr, ssim, lpips, cs = [], [], [], []
 
 if st.sidebar.button('Colorize'):
     with open("test/temp.mp4", "wb") as f:
         f.write(video_org)
     video_in = v2i.convert_video_to_frames("test/temp.mp4", "test/frames")
     for i, model_name in enumerate(model_names):
+        # import model
         model_module = import_module(f"models.{model_name}")
         Model = getattr(model_module, model_name)
+        # import and parse test options
         opt_module = import_module(f"models.{model_name}.options.test_options")
         TestOptions = getattr(opt_module, "TestOptions")
+        # run test on model
         model = Model(pretrained=True)
-        video_out = colorize(model, i)
+        video_out = colorize(model, model_name)
+        st.write(model_name + ": ")
         st.video(video_out, format="video/mp4", start_time=0)
-
-        results = metric(f"test/output_{i}.mp4")
-        for k in results:
-            st.write(results[k])
-    
+        # get metrics
+        results = metric(f"test/output_{model_name}.mp4")
+        psnr.append(results["PSNR"])
+        ssim.append(results["SSIM"])
+        lpips.append(results["LPIPS"])
+        cs.append(results["cosine_similarity"])
+        print(f"{model_name} metric complete!")
     os.remove("test/temp.mp4")
+
+# display metrics
+st.subheader("Metrics:")   
+idx = model_names 
+fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, figsize=(20, 30))
+# plt.subplots_adjust(wspace=1, hspace=1)
+ax1.bar(idx, psnr, color=['grey' if (x < max(psnr)) else 'red' for x in psnr ], width=0.4)
+ax2.bar(idx, ssim, color=['grey' if (x < max(ssim)) else 'red' for x in ssim ], width=0.4)
+ax3.bar(idx, lpips, color=['grey' if (x > min(lpips)) else 'red' for x in lpips ], width=0.4)
+ax4.bar(idx, cs, color=['grey' if (x < max(cs)) else 'red' for x in cs ], width=0.4)
+ax1.set_title('PNSR (higher is better)')
+ax2.set_title('SSIM (higher is better)')
+ax3.set_title('LPIPS (higher is better)')
+ax4.set_title('Cosine Similarity (higher is better)')
+st.pyplot(fig)
