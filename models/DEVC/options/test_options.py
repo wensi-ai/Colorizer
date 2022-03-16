@@ -6,7 +6,7 @@ class TestOptions():
         
     def initialize(self, parser):
         parser.add_argument(
-            "--frame_propagate", default=False, type=bool, help="propagation mode, , please check the paper"
+            "--frame_propagate", default=True, type=bool, help="propagation mode, , please check the paper"
         )
         parser.add_argument("--image_size", type=int, default=[216 * 2, 384 * 2], help="the image size, eg. [216,384]")
         parser.add_argument("--cuda", action="store_false")

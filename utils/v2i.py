@@ -25,10 +25,14 @@ def convert_frames_to_video(frames_path: str, output_video_path: str, images: Li
         images = sorted(os.listdir(frames_path))
     frame = cv2.imread(os.path.join(frames_path, images[0]))
     height, width, _ = frame.shape
-    video = cv2.VideoWriter(output_video_path, cv2.VideoWriter_fourcc(*'XVID'), 30, (width, height))
+    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+    video = cv2.VideoWriter("temp.mp4", fourcc, 30.0, (width, height))
 
     for image in images:
         video.write(cv2.imread(os.path.join(frames_path, image)))
 
     cv2.destroyAllWindows()
     video.release()
+
+    os.system(f"ffmpeg -y -i temp.mp4 -vcodec libx264 {output_video_path}")
+    os.remove("temp.mp4")

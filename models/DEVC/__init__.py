@@ -46,7 +46,6 @@ class DEVC():
             param.requires_grad = False
 
         # processing folders
-        mkdir(output_path)
         print("processing the folder:", input_path)
         _, _, filenames = os.walk(input_path).__next__()
         filenames.sort(key=lambda f: int("".join(filter(str.isdigit, f) or -1)))
@@ -58,7 +57,7 @@ class DEVC():
 
         # if frame propagation: use the first frame as reference
         # otherwise, use the specified reference image
-        ref_name = input_path + filenames[0] if opt.frame_propagate else opt.ref_path
+        ref_name = os.path.join(input_path , filenames[0]) if opt.frame_propagate else opt.ref_path
         print("reference name:", ref_name)
         frame_ref = Image.open(ref_name)
 
@@ -136,7 +135,6 @@ class DEVC():
         shutil.rmtree("checkpoints")
 
         print("Task Complete!")
-        
 
     def train(self):
         pass

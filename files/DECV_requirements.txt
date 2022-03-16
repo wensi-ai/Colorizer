@@ -16,3 +16,6 @@ tensorboard
 future
 numba
 pypng
+av
+torchvideo
+pillow-simd

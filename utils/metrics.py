@@ -8,7 +8,7 @@ import lpips
 def PSNR(img1, img2):
     SE_map = (1. * img1 - img2) ** 2
     cur_MSE = torch.mean(SE_map)
-    return 20 * torch.log10(1. / torch.sqrt(cur_MSE))
+    return float(20 * torch.log10(1. / torch.sqrt(cur_MSE)))
 
 
 def SSIM(img1, img2, window_size=11, size_average=True):
@@ -41,14 +41,21 @@ def SSIM(img1, img2, window_size=11, size_average=True):
     ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
 
     if size_average:
-        return ssim_map.mean()
+        return float(ssim_map.mean())
     else:
         return ssim_map.mean(1).mean(1).mean(1)
 
 
 def LPIPS(img1, img2):
+    # Normalize to [-1, 1]
+    batch_size = 10
+    img1 = 2 * (img1 / 255.) - 1
+    img2 = 2 * (img2 / 255.) - 1
     loss_fn = lpips.LPIPS(net='alex')
-    return loss_fn.forward(img1, img2)
+    result = 0
+    for i in range(img1.shape[0] // batch_size):
+        result += float(torch.mean(loss_fn.forward(img1[i*batch_size:(i+1)*batch_size], img2[i*batch_size:(i+1)*batch_size])))
+    return result / (img1.shape[0] // batch_size)
 
 
 def PCVC(img1, img2):
@@ -82,4 +89,4 @@ def cosine_similarity(img1, img2):
     normalized_input = torch.div(img1, input_norm)
     normalized_target = torch.div(img2, target_norm)
     cos_similarity = torch.mul(normalized_input, normalized_target)
-    return torch.sum(cos_similarity, dim=1, keepdim=True)
+    return float(torch.mean(cos_similarity))
