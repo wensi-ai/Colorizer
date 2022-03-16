@@ -17,7 +17,7 @@ from models.DEVC.models.FrameColor import frame_colorization
 from models.DEVC.models.NonlocalNet import VGG19_pytorch, WarpNet
 
 class DEVC():
-    def __init__(self, pretrained=False):
+    def __init__(self, pretrained=True):
         self.nonlocal_net = WarpNet(1)
         self.colornet = ColorVidNet(7)
         self.vggnet = VGG19_pytorch()
@@ -136,6 +136,3 @@ class DEVC():
         shutil.rmtree(opt.output_frame_path)
 
         print("Task Complete!")
-
-    def train(self):
-        pass

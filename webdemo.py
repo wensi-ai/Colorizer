@@ -11,9 +11,8 @@ from utils.util import apply_metric_to_video
 from utils.metrics import *
 
 @st.cache
-def colorize(model, model_name):
+def colorize(model, model_name, opt):
     sys.argv = [sys.argv[0]]
-    opt = TestOptions().parse()
     model.test("test/frames", f"test/output_{model_name}.mp4", opt)
     video = open(f"test/output_{model_name}.mp4", 'rb').read()
     return video
@@ -44,7 +43,8 @@ input_method = st.sidebar.selectbox(
 # get input video
 if input_method == "upload local video":
     video_org = st.sidebar.file_uploader("Choose a file")
-    video_org = video_org.content()
+    if video_org:
+        video_org = video_org.getvalue()
 elif input_method == "sample video":
     video_org = open('test/input.mp4', 'rb').read()
 else:
@@ -67,11 +67,15 @@ if st.sidebar.button('Colorize'):
         model_module = import_module(f"models.{model_name}")
         Model = getattr(model_module, model_name)
         # import and parse test options
-        opt_module = import_module(f"models.{model_name}.options.test_options")
-        TestOptions = getattr(opt_module, "TestOptions")
+        try:
+            opt_module = import_module(f"models.{model_name}.options.test_options")
+            TestOptions = getattr(opt_module, "TestOptions")
+            opt = TestOptions().parse()
+        except AttributeError: # no option needed
+            opt = None
         # run test on model
-        model = Model(pretrained=True)
-        video_out = colorize(model, model_name)
+        model = Model()
+        video_out = colorize(model, model_name, opt)
         st.write(model_name + ": ")
         st.video(video_out, format="video/mp4", start_time=0)
         # get metrics

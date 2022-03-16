@@ -19,7 +19,7 @@ from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
 
 class InstaColor:
-    def __init__(self, pretrained=False):
+    def __init__(self, pretrained=True):
         # Bounding box predictor
         cfg = get_cfg()
         cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_X_101_32x8d_FPN_3x.yaml"))
