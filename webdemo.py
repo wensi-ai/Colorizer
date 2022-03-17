@@ -9,12 +9,14 @@ from importlib import import_module
 from utils import v2i
 from utils.util import apply_metric_to_video
 from utils.metrics import *
+import shutil
 
 @st.cache
 def colorize(model, model_name, opt):
     sys.argv = [sys.argv[0]]
     model.test("test/frames", f"test/output_{model_name}.mp4", opt)
     video = open(f"test/output_{model_name}.mp4", 'rb').read()
+    shutil.rmtree("test/frames")
     return video
 
 @st.cache
@@ -32,7 +34,7 @@ st.title("Video Colorization Web Demo")
 # Add a selectbox to the sidebar:
 model_names = st.sidebar.multiselect(
     'Select colorization model(s):',
-    ('DEVC', 'InstaColor')
+    ('DEVC', 'InstaColor', 'Colorful')
 )
 
 # Add a slider to the sidebar:
@@ -42,17 +44,17 @@ input_method = st.sidebar.selectbox(
 )
 # get input video
 if input_method == "upload local video":
-    video_org = st.sidebar.file_uploader("Choose a file")
-    if video_org:
-        video_org = video_org.getvalue()
+    video_orig = st.sidebar.file_uploader("Choose a file")
+    if video_orig:
+        video_orig = video_orig.getvalue()
 elif input_method == "sample video":
-    video_org = open('test/input.mp4', 'rb').read()
+    video_orig = open('test/input.mp4', 'rb').read()
 else:
-    video_org = None
+    video_orig = None
 
 # display video
 st.subheader("Original video:")
-st.video(video_org, format="video/mp4", start_time=0)
+st.video(video_orig, format="video/mp4", start_time=0)
 st.subheader("Colorized video:")
 
 # setup metric
@@ -60,7 +62,7 @@ psnr, ssim, lpips, cs = [], [], [], []
 
 if st.sidebar.button('Colorize'):
     with open("test/temp.mp4", "wb") as f:
-        f.write(video_org)
+        f.write(video_orig)
     video_in = v2i.convert_video_to_frames("test/temp.mp4", "test/frames")
     for i, model_name in enumerate(model_names):
         # import model
@@ -78,6 +80,7 @@ if st.sidebar.button('Colorize'):
         video_out = colorize(model, model_name, opt)
         st.write(model_name + ": ")
         st.video(video_out, format="video/mp4", start_time=0)
+        print("video displayed")
         # get metrics
         results = metric(f"test/output_{model_name}.mp4")
         psnr.append(results["PSNR"])

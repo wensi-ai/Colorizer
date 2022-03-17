@@ -1,6 +1,7 @@
 import os
 import cv2
 from typing import List
+import skvideo.io
 
 def convert_video_to_frames(video_path: str, frames_path: str):
     """Convert video input to a set of frames in jpg format"""

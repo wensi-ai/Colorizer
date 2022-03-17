@@ -6,3 +6,4 @@ notebooks/checkpoints*
 
 **/__pycache__
 *.zip
+checkpoints

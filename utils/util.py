@@ -36,5 +36,7 @@ def apply_metric_to_video(video_path1, video_path2, metrics):
     video2 = video2.permute((0, 3, 1, 2))[:length].float()
     results = []
     for metric in metrics:
+        print(metric.__name__)
         results.append(metric(video1, video2))
+    print(len(results))
     return results
