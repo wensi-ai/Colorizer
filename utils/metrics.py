@@ -48,14 +48,11 @@ def SSIM(img1, img2, window_size=11, size_average=True):
 
 def LPIPS(img1, img2):
     # Normalize to [-1, 1]
-    batch_size = 10
     img1 = 2 * (img1 / 255.) - 1
     img2 = 2 * (img2 / 255.) - 1
     loss_fn = lpips.LPIPS(net='alex')
-    result = 0
-    for i in range(img1.shape[0] // batch_size):
-        result += float(torch.mean(loss_fn.forward(img1[i*batch_size:(i+1)*batch_size], img2[i*batch_size:(i+1)*batch_size])))
-    return result / (img1.shape[0] // batch_size)
+    result = float(torch.mean(loss_fn.forward(img1, img2)))
+    return result
 
 
 def PCVC(img1, img2):
