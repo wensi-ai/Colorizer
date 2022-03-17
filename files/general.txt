@@ -1,3 +1,4 @@
 av
 torchvideo
 pillow-simd
+lpips

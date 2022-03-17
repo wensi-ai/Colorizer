@@ -7,8 +7,10 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from importlib import import_module
 from utils import v2i
-from utils.util import apply_metric_to_video
+from utils.util import apply_metric_to_video, mkdir
 from utils.metrics import *
+
+mkdir("test")
 
 @st.cache
 def colorize(model, model_name, opt):
@@ -46,7 +48,7 @@ if input_method == "upload local video":
     if video_org:
         video_org = video_org.getvalue()
 elif input_method == "sample video":
-    video_org = open('test/input.mp4', 'rb').read()
+    video_org = open('sample.mp4', 'rb').read()
 else:
     video_org = None
 
