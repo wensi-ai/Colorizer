@@ -133,5 +133,5 @@ class InstaColor:
         convert_frames_to_video(opt.results_img_dir, output_path)
         # remove bounding box dir
         shutil.rmtree(output_npz_dir)
-        shutil.rmtree(opt.results_img_dir)
+        # shutil.rmtree(opt.results_img_dir)
         print("Task Complete")

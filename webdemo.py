@@ -7,16 +7,24 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from importlib import import_module
 from utils import v2i
-from utils.util import apply_metric_to_video
+from utils.util import apply_metric_to_video, mkdir
 from utils.metrics import *
 import shutil
+
+mkdir("test")
 
 @st.cache
 def colorize(model, model_name, opt):
     sys.argv = [sys.argv[0]]
     model.test("test/frames", f"test/output_{model_name}.mp4", opt)
     video = open(f"test/output_{model_name}.mp4", 'rb').read()
-    shutil.rmtree("test/frames")
+    return video
+
+@st.cache
+def dvp(model, model_name, opt):
+    sys.argv = [sys.argv[0]]
+    model.test("test/frames", "test/results", f"test/output_{model_name}.mp4", opt)
+    video = open(f"test/output_{model_name}.mp4", 'rb').read()
     return video
 
 @st.cache
@@ -34,7 +42,7 @@ st.title("Video Colorization Web Demo")
 # Add a selectbox to the sidebar:
 model_names = st.sidebar.multiselect(
     'Select colorization model(s):',
-    ('DEVC', 'InstaColor', 'Colorful')
+    ('DEVC', 'InstaColor', 'Colorful', 'DVP')
 )
 
 # Add a slider to the sidebar:
@@ -48,7 +56,7 @@ if input_method == "upload local video":
     if video_orig:
         video_orig = video_orig.getvalue()
 elif input_method == "sample video":
-    video_orig = open('test/input.mp4', 'rb').read()
+    video_orig = open('sample.mp4', 'rb').read()
 else:
     video_orig = None
 
@@ -63,7 +71,7 @@ psnr, ssim, lpips, cs = [], [], [], []
 if st.sidebar.button('Colorize'):
     with open("test/temp.mp4", "wb") as f:
         f.write(video_orig)
-    video_in = v2i.convert_video_to_frames("test/temp.mp4", "test/frames")
+    video_in = v2i.convert_video_to_frames("test/temp.mp4", "./test/frames")
     for i, model_name in enumerate(model_names):
         # import model
         model_module = import_module(f"models.{model_name}")
@@ -77,7 +85,10 @@ if st.sidebar.button('Colorize'):
             opt = None
         # run test on model
         model = Model()
-        video_out = colorize(model, model_name, opt)
+        if model_name == "DVP":
+            video_out = dvp(model, model_name, opt)
+        else:
+            video_out = colorize(model, model_name, opt)
         st.write(model_name + ": ")
         st.video(video_out, format="video/mp4", start_time=0)
         print("video displayed")
@@ -89,6 +100,9 @@ if st.sidebar.button('Colorize'):
         cs.append(results["cosine_similarity"])
         print(f"{model_name} metric complete!")
     os.remove("test/temp.mp4")
+
+shutil.rmtree("test/frames")
+shutil.rmtree("test/results")
 
 # display metrics
 st.subheader("Metrics:")   

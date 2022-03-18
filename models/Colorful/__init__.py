@@ -38,7 +38,6 @@ class Colorful():
             plt.imsave(os.path.join(self.opt.output_frame_path, frame), colorized)
 
         convert_frames_to_video(self.opt.output_frame_path, output_path)
-        shutil.rmtree(self.opt.output_frame_path)
         
 
     def colorize(self, path):

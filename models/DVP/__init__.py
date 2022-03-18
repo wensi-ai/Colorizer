@@ -1,9 +1,3 @@
-
-from .base_color import *
-from .eccv16 import *
-from .siggraph17 import *
-from .util import *
-
 import os
 import shutil
 import cv2
@@ -20,30 +14,41 @@ from utils.v2i import convert_frames_to_video
 class OPT():
     pass
 
-class Colorful():
-    def __init__(self, pretrained=True):
-        self.model = siggraph17(pretrained=True).cuda().eval()
-        self.opt = OPT()
-        self.opt.output_frame_path = "./test/results"
+class DVP():
+    def __init__(self):
+        self.small = (320, 180)
+        self.in_size = (0, 0)
 
-    def test(self, input_path, output_path, opt=None):
-
-        if not os.path.isdir(self.opt.output_frame_path):
-            os.makedirs(self.opt.output_frame_path)
+    def test(self, black_white_path, colorized_path, output_path, opt=None):
+        assert os.path.exists(black_white_path) and os.path.exists(colorized_path)
         
-        frames = os.listdir(input_path)
-        frames.sort()
-        for frame in frames:
-            colorized = self.colorize(os.path.join(input_path, frame))
-            plt.imsave(os.path.join(self.opt.output_frame_path, frame), colorized)
+        self.downscale(black_white_path)
+        self.downscale(colorized_path)
 
-        convert_frames_to_video(self.opt.output_frame_path, output_path)
-        shutil.rmtree(self.opt.output_frame_path)
+        os.system(f'python3 ./models/DVP/main_IRT.py --save_freq {opt.sf} --max_epoch {opt.me} --input {black_white_path} --processed {colorized_path} --model temp --with_IRT 1 --IRT_initialization 1 --output {opt.op}')
+
+        frames_path = f"{opt.op}/temp_IRT1_initial1/{os.path.basename(black_white_path)}/00{opt.me}"
+
+        self.upscale(frames_path)
+
+        length = len(os.listdir(frames_path))
+        frames = [f"out_main_{str(i).zfill(5)}.jpg" for i in range(length)]
+        convert_frames_to_video(frames_path, output_path, frames)
         
+    def downscale(self, path):
+        frames = os.listdir(path)
 
-    def colorize(self, path):
-        img = load_img(path)
-        (tens_l_orig, tens_l_rs) = preprocess_img(img, HW=(256,256))
-        tens_l_rs = tens_l_rs.cuda()
-        out_img_siggraph17 = postprocess_tens(tens_l_orig, self.model(tens_l_rs).cpu())
-        return out_img_siggraph17
+        frame = Image.open(os.path.join(path, frames[0]))
+        self.in_size = frame.size
+
+        for each in frames:
+            img = Image.open(os.path.join(path, each))
+            img = img.resize(self.small, Image.ANTIALIAS)
+            img.save(os.path.join(path, each))
+
+    def upscale(self, path):
+        frames = os.listdir(path)
+        for each in frames:
+            img = Image.open(os.path.join(path, each))
+            img = img.resize(self.in_size, Image.ANTIALIAS)
+            img.save(os.path.join(path, each))
