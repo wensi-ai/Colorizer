@@ -115,6 +115,6 @@ ax3.bar(idx, lpips, color=['grey' if (x > min(lpips)) else 'red' for x in lpips 
 ax4.bar(idx, cs, color=['grey' if (x < max(cs)) else 'red' for x in cs ], width=0.4)
 ax1.set_title('PNSR (higher is better)')
 ax2.set_title('SSIM (higher is better)')
-ax3.set_title('LPIPS (higher is better)')
+ax3.set_title('LPIPS (lower is better)')
 ax4.set_title('Cosine Similarity (higher is better)')
 st.pyplot(fig)
