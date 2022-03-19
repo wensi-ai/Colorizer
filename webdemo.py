@@ -42,7 +42,7 @@ st.title("Video Colorization Web Demo")
 # Add a selectbox to the sidebar:
 model_names = st.sidebar.multiselect(
     'Select colorization model(s):',
-    ('DEVC', 'InstaColor', 'Colorful', 'DVP')
+    ('DEVC', 'InstaColor', 'Colorful')
 )
 
 # Add a slider to the sidebar:
